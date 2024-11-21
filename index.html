@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Luxury Todo App</title>
+    
+    <!-- React Development -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom styles -->
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        .dark {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .todo-item {
+            transition: all 0.3s ease;
+        }
+        .todo-item:hover {
+            transform: translateX(5px);
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+        .status-todo { background-color: #b76e79; }
+        .status-in-process { background-color: #9d8664; }
+        .status-completed { 
+            background-color: #7c9a92;
+            text-decoration: line-through;
+        }
+        .tab {
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .tab.active {
+            background-color: #b76e79;
+            color: white;
+        }
+        .icon-button {
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .icon-button:hover {
+            transform: scale(1.1);
+        }
+        .tooltip {
+            visibility: hidden;
+            position: absolute;
+            background-color: #333;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .icon-button:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .completing {
+            animation: complete 0.5s forwards;
+        }
+        @keyframes complete {
+            0% {
+                transform: scale(1);
+            }
+            100% {
+                transform: scale(0.9);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const initialTodos = (() => {
+            try {
+                const saved = localStorage.getItem('todos');
+                return saved ? JSON.parse(saved) : [];
+            } catch (e) {
+                console.error('Error loading todos:', e);
+                return [];
+            }
+        })();
+
+        function App() {
+            const [todos, setTodos] = useState(initialTodos);
+            const [inputValue, setInputValue] = useState('');
+            const [filter, setFilter] = useState('all');
+            const [priority, setPriority] = useState('medium');
+            const [darkMode, setDarkMode] = useState(false);
+
+            useEffect(() => {
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme === 'dark') {
+                    setDarkMode(true);
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
+            }, []);
+
+            useEffect(() => {
+                document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+                localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+                localStorage.setItem('todos', JSON.stringify(todos));
+            }, [todos, darkMode]);
+
+            const addTodo = (e) => {
+                e.preventDefault();
+                if (!inputValue.trim()) return;
+
+                const newTodo = {
+                    id: Date.now(),
+                    text: inputValue,
+                    status: 'todo',
+                    priority: priority,
+                    createdAt: new Date().toISOString()
+                };
+
+                setTodos([...todos, newTodo]);
+                setInputValue('');
+            };
+
+            const updateTodoStatus = (id, newStatus) => {
+                const todoIndex = todos.findIndex(todo => todo.id === id);
+                if (todoIndex === -1) return;
+
+                const todoElement = document.querySelector(`[data-todo-id="${id}"]`);
+                if (newStatus === 'completed') {
+                    todoElement.classList.add('completing');
+                    setTimeout(() => {
+                        setTodos(prevTodos => {
+                            const newTodos = [...prevTodos];
+                            newTodos[todoIndex] = { ...newTodos[todoIndex], status: newStatus };
+                            localStorage.setItem('todos', JSON.stringify(newTodos));
+                            return newTodos;
+                        });
+                    }, 500);
+                } else {
+                    setTodos(prevTodos => {
+                        const newTodos = [...prevTodos];
+                        newTodos[todoIndex] = { ...newTodos[todoIndex], status: newStatus };
+                        localStorage.setItem('todos', JSON.stringify(newTodos));
+                        return newTodos;
+                    });
+                }
+            };
+
+            const deleteTodo = (id) => {
+                setTodos(todos.filter(todo => todo.id !== id));
+            };
+
+            const getStatusIcon = (status) => {
+                switch(status) {
+                    case 'todo':
+                        return <i className="fas fa-circle text-gray-400"></i>;
+                    case 'in-process':
+                        return <i className="fas fa-spinner fa-spin text-yellow-500"></i>;
+                    case 'completed':
+                        return <i className="fas fa-check-circle text-green-500"></i>;
+                    default:
+                        return null;
+                }
+            };
+
+            const filteredTodos = todos
+                .filter(todo => filter === 'all' ? true : todo.status === filter)
+                .sort((a, b) => {
+                    const statusOrder = {
+                        'in-process': 0,
+                        'todo': 1,
+                        'completed': 2
+                    };
+                    return statusOrder[a.status] - statusOrder[b.status];
+                })
+                .sort((a, b) => {
+                    const priorityOrder = { high: 1, medium: 2, low: 3 };
+                    return priorityOrder[a.priority] - priorityOrder[b.priority];
+                });
+
+            return (
+                <div className="container mx-auto px-4 py-8 max-w-2xl">
+                    <div className="flex justify-between items-center mb-8">
+                        <h1 className="text-3xl font-bold">Luxury Todo App</h1>
+                        <button 
+                            className="icon-button"
+                            onClick={() => setDarkMode(!darkMode)}
+                        >
+                            <i className={`fas fa-${darkMode ? 'sun' : 'moon'} text-xl`}></i>
+                            <span className="tooltip">Toggle {darkMode ? 'Light' : 'Dark'} Mode</span>
+                        </button>
+                    </div>
+
+                    <form onSubmit={addTodo} className="todo-form">
+                        <div className="flex flex-wrap gap-4">
+                            <input
+                                type="text"
+                                value={inputValue}
+                                onChange={(e) => setInputValue(e.target.value)}
+                                placeholder="Add a new task..."
+                                className="flex-1 p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                            />
+                            <select
+                                value={priority}
+                                onChange={(e) => setPriority(e.target.value)}
+                                className="p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+                            >
+                                <option value="high">High</option>
+                                <option value="medium">Medium</option>
+                                <option value="low">Low</option>
+                            </select>
+                            <button 
+                                type="submit"
+                                className="icon-button bg-rose-500 text-white px-4 py-2 rounded hover:bg-rose-600"
+                            >
+                                <i className="fas fa-plus"></i>
+                                <span className="tooltip">Add Task</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div className="flex gap-4 mb-6">
+                        {['all', 'todo', 'in-process', 'completed'].map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setFilter(tab)}
+                                className={`tab ${filter === tab ? 'active' : ''}`}
+                            >
+                                {tab === 'all' ? 'All' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="space-y-4">
+                        {filteredTodos.map(todo => (
+                            <div key={todo.id} 
+                                 data-todo-id={todo.id}
+                                 className={`todo-item ${todo.status} p-4 rounded-lg flex justify-between items-center`}>
+                                <div className="flex-1">
+                                    <p className="text-lg font-medium mb-2">{todo.text}</p>
+                                    <div className="todo-metadata text-sm">
+                                        <span className="status-badge mr-2">{todo.status}</span>
+                                        <span className="priority-badge">{todo.priority} priority</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    {todo.status !== 'completed' && (
+                                        <button 
+                                            onClick={() => updateTodoStatus(todo.id, 'completed')}
+                                            className="status-button complete-button"
+                                            title="Mark as Completed">
+                                            <i className="fas fa-check"></i>
+                                        </button>
+                                    )}
+                                    {todo.status !== 'in-process' && (
+                                        <button 
+                                            onClick={() => updateTodoStatus(todo.id, 'in-process')}
+                                            className="status-button process-button"
+                                            title="Mark as In Process">
+                                            <i className="fas fa-spinner"></i>
+                                        </button>
+                                    )}
+                                    <select 
+                                        value={todo.priority}
+                                        onChange={(e) => updateTodoPriority(todo.id, e.target.value)}
+                                        className="ml-2 p-2 rounded-md">
+                                        <option value="low">Low</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="high">High</option>
+                                    </select>
+                                    <button 
+                                        onClick={() => deleteTodo(todo.id)}
+                                        className="delete-button"
+                                        title="Delete Task">
+                                        <i className="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
