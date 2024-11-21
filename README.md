@@ -83,4 +83,4 @@ The app works best in modern browsers that support ES6+ features:
 
 ## Contributing
 
-Feel free to fork this project and submit pull requests. For major changes, please open an issue first to discuss what you would like to change.
+Feel free to fork this project and submit pull requests.
